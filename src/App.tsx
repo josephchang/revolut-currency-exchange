@@ -7,6 +7,7 @@ import { getRateByCurrencyPair } from './data/rates';
 import Pockets from './components/Pockets';
 import ExchangeRate from './components/ExchangeRate';
 import { calculateExchangeAmount, getRateDisplay } from './utils/rates';
+import { doesExceedBalance, updatePocketBalances } from './utils/pockets';
 import { Pocket, SupportedCurrencies } from './types';
 
 export interface AppProps {}
@@ -68,6 +69,30 @@ const ExchangeRateWrapper = styled.div`
   margin-top: -20px;
   position: absolute;
   width: 100%;
+`;
+
+const ExchangeButton = styled.button`
+  background: #fff;
+  border: 4px solid #19727888;
+  border-radius: 40px;
+  bottom: 20px;
+  height: 80px;
+  left: 50%;
+  margin-left: -40px;
+  outline: 0;
+  position: absolute;
+  width: 80px;
+
+  &:hover {
+    background: #283d3b88;
+    color: #fff;
+  }
+
+  &:disabled {
+    background: #ddd;
+    border-color: #999;
+    color: #aaa;
+  }
 `;
 
 class App extends React.Component<AppProps, AppState> {
@@ -197,6 +222,25 @@ class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  onExchangeButtonClick = () => {
+    const { base, baseAmount, quote, quoteAmount, pockets } = this.state;
+
+    if (base && baseAmount && quote && quoteAmount) {
+      const updatedPockets = updatePocketBalances(
+        pockets,
+        base,
+        Number(baseAmount),
+        quote,
+        Number(quoteAmount)
+      );
+      this.setState({
+        pockets: updatedPockets,
+        baseAmount: undefined,
+        quoteAmount: undefined,
+      });
+    }
+  };
+
   render() {
     const { base, baseAmount, pockets, quote, quoteAmount, rate } = this.state;
 
@@ -204,6 +248,7 @@ class App extends React.Component<AppProps, AppState> {
       return null;
     }
 
+    const exceedsBalance = doesExceedBalance(base, pockets, Number(baseAmount));
     return (
       <Container>
         <BaseWrapper data-testid="exchange-base">
@@ -241,6 +286,14 @@ class App extends React.Component<AppProps, AppState> {
             />
           </div>
         </QuoteWrapper>
+        <ExchangeButton
+          data-testid="exchange-button"
+          type="button"
+          disabled={exceedsBalance}
+          onClick={this.onExchangeButtonClick}
+        >
+          Exchange
+        </ExchangeButton>
       </Container>
     );
   }

@@ -6,13 +6,20 @@ import {
   fireEvent,
   RenderResult,
 } from '@testing-library/react';
+import { Pocket } from './types';
 import { getRateByCurrencyPair } from './data/rates';
-import { mockGBP, mockEUR, mockUSD } from './data/mocks';
+import { getPockets } from './data/pockets';
+import { mockGBP, mockEUR, mockUSD, mockPockets } from './data/mocks';
 import { calculateExchangeAmount, getRateDisplay } from './utils/rates';
+import { getPocketByCurrency } from './utils/pockets';
 import App from './App';
 
 jest.mock('./data/rates', () => ({
   getRateByCurrencyPair: jest.fn(),
+}));
+
+jest.mock('./data/pockets', () => ({
+  getPockets: jest.fn(),
 }));
 
 describe('Given the exchange screen', () => {
@@ -21,12 +28,15 @@ describe('Given the exchange screen', () => {
   let quoteContainer: HTMLElement;
   let baseField: HTMLInputElement;
   let quoteField: HTMLInputElement;
+  let pockets: Pocket[];
 
   beforeEach(() => {
     jest.useFakeTimers();
     (getRateByCurrencyPair as jest.Mock).mockImplementation(() =>
       Promise.resolve(mockGBP.EUR)
     );
+    pockets = [...mockPockets];
+    (getPockets as jest.Mock).mockImplementation(() => pockets);
     result = render(<App />);
     baseContainer = result.getByTestId('exchange-base');
     quoteContainer = result.getByTestId('exchange-quote');
@@ -70,6 +80,10 @@ describe('Given the exchange screen', () => {
     const quoteRate = getRateDisplay(mockGBP.EUR, 4);
     expect(queryByTestId(container, quoteTestId)).toBeTruthy();
     expect(getByTestId(container, quoteTestId)).toHaveTextContent(quoteRate);
+  });
+
+  it('should show the exchange button', () => {
+    expect(result.queryByTestId('exchange-button')).toBeTruthy();
   });
 
   describe('When a value is entered in the base currency field', () => {
@@ -210,6 +224,48 @@ describe('Given the exchange screen', () => {
             );
             expect(quoteField.value).toBe(exchangedAmount.toString());
           });
+        });
+      });
+
+      describe('When the exchange button is clicked', () => {
+        beforeEach(() => {
+          const exchangeButton = result.getByTestId('exchange-button');
+          fireEvent.click(exchangeButton);
+        });
+
+        it('should update the balances of the pockets', () => {
+          const basePocket = getPocketByCurrency('GBP', pockets);
+          const quotePocket = getPocketByCurrency('EUR', pockets);
+          const exchangedAmount = Number(
+            getRateDisplay(calculateExchangeAmount(amount, mockGBP.EUR))
+          );
+
+          const baseBalance = basePocket
+            ? basePocket.balance
+            : Number.NEGATIVE_INFINITY;
+          const quoteBalance = quotePocket
+            ? quotePocket.balance
+            : Number.NEGATIVE_INFINITY;
+
+          expect(
+            getByTestId(baseContainer, 'pocket-GBP-balance')
+          ).toHaveTextContent(`${baseBalance - amount}`);
+          expect(
+            getByTestId(quoteContainer, 'pocket-EUR-balance')
+          ).toHaveTextContent(`${quoteBalance + exchangedAmount}`);
+        });
+
+        it('should reset the amount fields', () => {
+          const baseField = getByTestId(
+            baseContainer,
+            'exchange-base-amount'
+          ) as HTMLInputElement;
+          const quoteField = getByTestId(
+            quoteContainer,
+            'exchange-quote-amount'
+          ) as HTMLInputElement;
+          expect(baseField.value).toBe('');
+          expect(quoteField.value).toBe('');
         });
       });
     });

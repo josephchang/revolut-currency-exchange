@@ -1,3 +1,5 @@
+import { Pocket } from '../types';
+
 export const mockGBP = {
   CAD: 1.7212834673,
   HKD: 10.0395710018,
@@ -104,3 +106,18 @@ export const mockUSD = {
   KRW: 1163.410059676,
   PLN: 3.831543052,
 };
+
+export const mockPockets: Pocket[] = [
+  {
+    currency: 'GBP',
+    balance: 89.22,
+  },
+  {
+    currency: 'EUR',
+    balance: 194.83,
+  },
+  {
+    currency: 'USD',
+    balance: 0,
+  },
+];
